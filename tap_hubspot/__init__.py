@@ -96,7 +96,7 @@ ENDPOINTS = {
 
     "subscription_changes": "/email/public/v1/subscriptions/timeline",
     "email_events":         "/email/public/v1/events",
-    "contact_lists":        "/contacts/v1/lists",
+    "contact_lists":        "/crm/v3/lists/search",
     "forms":                "/forms/v2/forms",
     "workflows":            "/automation/v3/workflows",
     "owners":               "/crm/v3/owners/",
@@ -955,29 +955,48 @@ def sync_contact_lists(STATE, ctx):
     mdata = metadata.to_map(catalog.get('metadata'))
     schema = load_schema("contact_lists")
     bookmark_key = 'updatedAt'
-    singer.write_schema("contact_lists", schema, ["listId"], [bookmark_key], catalog.get('stream_alias'))
 
-    start = get_start(STATE, "contact_lists", bookmark_key)
+    singer.write_schema(
+        "contact_lists", schema, ["listId"], [bookmark_key], catalog.get('stream_alias'))
+
+    start = utils.strptime_with_tz(get_start(STATE, "contact_lists", bookmark_key))
     max_bk_value = start
 
     LOGGER.info("sync_contact_lists from %s", start)
 
     url = get_url("contact_lists")
-    params = {'count': 250}
-    with Transformer(UNIX_MILLISECONDS_INTEGER_DATETIME_PARSING) as bumble_bee:
-        # To handle records updated between start of the table sync and the end,
-        # store the current sync start in the state and not move the bookmark past this value.
+    body = {"count": 250, "query": ""}
+    if singer.get_offset(STATE, 'contact_lists'):
+        body['offset'] = singer.get_offset(STATE, 'contact_lists')['offset']
+
+    with Transformer(UNIX_MILLISECONDS_INTEGER_DATETIME_PARSING) as transformer:
         sync_start_time = utils.now()
-        for row in gen_request(STATE, 'contact_lists', url, params, "lists", "has-more", ["offset"], ["offset"]):
-            record = bumble_bee.transform(lift_properties_and_versions(row), schema, mdata)
+        while True:
+            resp = post_search_endpoint(url, body)
+            data = resp.json()
 
-            if record[bookmark_key] >= start:
-                singer.write_record("contact_lists", record, catalog.get('stream_alias'), time_extracted=utils.now())
-            if record[bookmark_key] >= max_bk_value:
-                max_bk_value = record[bookmark_key]
+            for row in data.get('lists', []):
+                record = transformer.transform(lift_properties_and_versions(row), schema, mdata)
+                record_time = utils.strptime_to_utc(record[bookmark_key])
 
-    # Don't bookmark past the start of this sync to account for updated records during the sync.
-    new_bookmark = min(utils.strptime_to_utc(max_bk_value), sync_start_time)
+                if record_time and record_time >= start:
+                    singer.write_record(
+                        "contact_lists",
+                        record,
+                        catalog.get('stream_alias'),
+                        time_extracted=utils.now())
+                    if record_time >= max_bk_value:
+                        max_bk_value = record_time
+
+            if not data.get('hasMore'):
+                break
+
+            body['offset'] = data.get('offset')
+            STATE = singer.set_offset(STATE, 'contact_lists', 'offset', body['offset'])
+            singer.write_state(STATE)
+
+    STATE = singer.clear_offset(STATE, 'contact_lists')
+    new_bookmark = min(max_bk_value, sync_start_time)
     STATE = singer.write_bookmark(STATE, 'contact_lists', bookmark_key, utils.strftime(new_bookmark))
     singer.write_state(STATE)
 
