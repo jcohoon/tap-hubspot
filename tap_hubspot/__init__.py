@@ -53,6 +53,7 @@ V3_PREFIXES = {'hs_v2_date_entered', 'hs_v2_date_exited', 'hs_v2_latest_time_in'
 CONFIG = {
     "access_token": None,
     "token_expires": None,
+    "auth_method": None,
     "email_chunk_size": DEFAULT_CHUNK_SIZE,
     "subscription_chunk_size": DEFAULT_CHUNK_SIZE,
 
@@ -66,6 +67,42 @@ CONFIG = {
     "include_inactives": None,
     "select_fields_by_default": None,
 }
+
+
+def load_env_config(config):
+    env_map = {
+        "auth_method": "TAP_HUBSPOT_AUTH_METHOD",
+        "access_token": "TAP_HUBSPOT_ACCESS_TOKEN",
+        "client_id": "TAP_HUBSPOT_CLIENT_ID",
+        "client_secret": "TAP_HUBSPOT_CLIENT_SECRET",
+        "redirect_uri": "TAP_HUBSPOT_REDIRECT_URI",
+        "refresh_token": "TAP_HUBSPOT_REFRESH_TOKEN",
+        "start_date": "TAP_HUBSPOT_START_DATE",
+        "hapikey": "TAP_HUBSPOT_HAPIKEY",
+    }
+    for key, env in env_map.items():
+        if config.get(key) is None and os.getenv(env):
+            config[key] = os.getenv(env)
+
+
+def validate_config(config):
+    if not config.get("start_date"):
+        raise ValueError("'start_date' is required in config")
+
+    auth_method = config.get("auth_method", "oauth")
+    config["auth_method"] = auth_method
+
+    if auth_method == "pat":
+        if not config.get("access_token"):
+            raise ValueError("'access_token' is required when auth_method='pat'")
+    elif auth_method == "oauth":
+        required = ["client_id", "client_secret", "redirect_uri", "refresh_token"]
+        for field in required:
+            if not config.get(field):
+                raise ValueError(f"'{field}' is required when auth_method='oauth'")
+    else:
+        raise ValueError("Invalid auth_method: {}".format(auth_method))
+
 
 ENDPOINTS = {
     "contacts_properties":  "/properties/v1/contacts/properties",
@@ -326,9 +363,12 @@ def get_params_and_headers(params):
     params = params or {}
     hapikey = CONFIG['hapikey']
     if hapikey is None:
-        if CONFIG['token_expires'] is None or CONFIG['token_expires'] < datetime.datetime.utcnow():
-            acquire_access_token_from_refresh_token()
-        headers = {'Authorization': 'Bearer {}'.format(CONFIG['access_token'])}
+        if CONFIG.get('auth_method', 'oauth') == 'pat':
+            headers = {'Authorization': f"Bearer {CONFIG['access_token']}"}
+        else:
+            if CONFIG['token_expires'] is None or CONFIG['token_expires'] < datetime.datetime.utcnow():
+                acquire_access_token_from_refresh_token()
+            headers = {'Authorization': f"Bearer {CONFIG['access_token']}"}
     else:
         params['hapikey'] = hapikey
         headers = {}
@@ -1503,6 +1543,8 @@ def main_impl():
          "start_date"])
 
     CONFIG.update(args.config)
+    load_env_config(CONFIG)
+    validate_config(CONFIG)
     STATE = {}
 
     if str(CONFIG.get('select_fields_by_default')).lower() not in ['none', 'true', 'false']:
