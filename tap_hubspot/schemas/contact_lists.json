@@ -1,97 +1,18 @@
 {
     "type": "object",
     "properties": {
-        "parentId": {
-            "type": ["null", "integer"]
-        },
-        "metaData": {
-            "type": "object",
-            "properties": {
-                "processing": {
-                    "type": ["null", "string"]
-                },
-                "size": {
-                    "type": ["null", "integer"]
-                },
-                "error": {
-                    "type": ["null", "string"]
-                },
-                "lastProcessingStateChangeAt": {
-                    "type": ["null", "string"],
-                    "format": "date-time"
-                },
-                "lastSizeChangeAt": {
-                    "type": ["null", "string"],
-                    "format": "date-time"
-                }
-            }
-        },
-        "dynamic": {
-            "type": ["null", "boolean"]
-        },
-        "name": {
-            "type": ["null", "string"]
-        },
-        "filters": {
-            "type": "array",
-            "items": {
-                "type": "array",
-                "items": {
-                    "type": "object",
-                    "properties": {
-                        "filterFamily": {
-                            "type": ["null", "string"]
-                        },
-                        "withinTimeMode": {
-                            "type": ["null", "string"]
-                        },
-                        "checkPastVersions": {
-                            "type": ["null", "boolean"]
-                        },
-                        "type": {
-                            "type": ["null", "string"]
-                        },
-                        "property": {
-                            "type": ["null", "string"]
-                        },
-                        "value": {
-                            "type": ["null", "string"]
-                        },
-                        "operator": {
-                            "type": ["null", "string"]
-                        }
-                    }
-                }
-            }
-        },
-        "portalId": {
-            "type": ["null", "integer"]
-        },
-        "createdAt": {
-            "type": ["null", "string"],
-            "format": "date-time"
-        },
-        "listId": {
-            "type": ["null", "integer"]
-        },
-        "updatedAt": {
-            "type": ["null", "string"],
-            "format": "date-time"
-        },
-        "internalListId": {
-            "type": ["null", "integer"]
-        },
-        "readOnly": {
-            "type": ["null", "boolean"]
-        },
-        "deleteable": {
-            "type": ["null", "boolean"]
-        },
-        "listType": {
-            "type": ["null", "string"]
-        },
-        "archived": {
-            "type": ["null", "boolean"]
-        }
+        "processingType": {"type": ["null", "string"]},
+        "objectTypeId": {"type": ["null", "string"]},
+        "updatedById": {"type": ["null", "integer"]},
+        "filtersUpdatedAt": {"type": ["null", "string"], "format": "date-time"},
+        "listId": {"type": ["null", "string"]},
+        "createdAt": {"type": ["null", "string"], "format": "date-time"},
+        "processingStatus": {"type": ["null", "string"]},
+        "deletedAt": {"type": ["null", "string"], "format": "date-time"},
+        "listVersion": {"type": ["null", "integer"]},
+        "name": {"type": ["null", "string"]},
+        "additionalProperties": {"type": ["null", "object"]},
+        "createdById": {"type": ["null", "integer"]},
+        "updatedAt": {"type": ["null", "string"], "format": "date-time"}
     }
 }
